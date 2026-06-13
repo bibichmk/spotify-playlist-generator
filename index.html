@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Mobile Playlist Generator</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* --- CUSTOM SPOTIFY FONT --- */
+        @font-face {
+            font-family: 'Circular Std';
+            src: url('circular-std-medium-500.ttf') format('truetype');
+            font-weight: 500;
+            font-style: normal;
+        }
+
+        /* --- CSS VARIABLES FOR THEME --- */
+        :root {
+            --bg-color: #121212; 
+            --bg-black: #000000; 
+            --bg-secondary: #282828;
+            --text-main: #FFFFFF;
+            --text-muted: #B3B3B3;
+            --spotify-green: #1ED760;
+            --saved-blue: #1ED760;
+            --playing-bar-bg: #06424D;
+            --gradient-top: #8a4a24; 
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Circular Std', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #000000; 
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0 50px 0;
+        }
+
+        /* --- CONTROL PANEL --- */
+        .controls {
+            background: #282828;
+            padding: 20px;
+            color: white;
+            border-bottom: 2px solid #1a1a1a;
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 650px;
+            margin-bottom: 30px;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif; 
+            border-radius: 12px;
+        }
+
+        .controls h2 { margin-top: 0; text-align: center; }
+        
+        .control-section {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .control-section h4 {
+            margin: 0 0 10px 0;
+            color: var(--spotify-green);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .control-group { margin-bottom: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .control-group label { width: 100px; font-size: 13px; color: #ccc; }
+        .control-group input[type="text"] { flex-grow: 1; padding: 6px; border-radius: 4px; border: 1px solid #444; background: #333; color: white; }
+        .control-group input[type="color"] { cursor: pointer; vertical-align: middle; }
+        .control-group input[type="file"] { font-size: 12px; color: #ccc; }
+
+        /* Download Button Styling */
+        .download-btn {
+            background-color: var(--spotify-green);
+            color: var(--bg-black);
+            border: none;
+            border-radius: 25px;
+            padding: 15px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        .download-btn:hover {
+            background-color: #1ed75fcd;
+        }
+        
+        .download-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* --- MOBILE CANVAS CONTAINER --- */
+        #playlist-canvas {
+            width: 375px; 
+            height: 812px; 
+            background: linear-gradient(to bottom, var(--gradient-top) 0%, var(--bg-color) 35%, var(--bg-black) 100%);
+            position: relative;
+            overflow: hidden; 
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- STATUS BAR --- */
+        .status-bar {
+            height: 44px;
+            padding: 0 20px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            box-sizing: border-box;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-icon {
+            height: 12px; 
+            object-fit: contain;
+        }
+
+        /* --- TOP NAV BAR --- */
+        .top-nav {
+            padding: 4px 16px; 
+            font-size: 24px;
+            color: var(--text-main);
+        }
+
+        /* --- HEADER SECTION --- */
+        .playlist-header {
+            text-align: center;
+            padding: 0 16px 10px; 
+        }
+
+        .cover-art {
+            width: 190px; 
+            height: 190px;
+            box-shadow: 0 4px 60px rgba(0,0,0,.5);
+            margin: 0 auto 12px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .title {
+            font-size: 32px; 
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .creator-info {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 8px;
+            font-size: 13px; 
+        }
+
+        .creator-pfp {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 8px;
+            object-fit: cover;
+        }
+
+        .meta-data {
+            font-size: 11px; 
+            color: var(--text-muted);
+            margin-top: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-icon {
+            width: 12px;
+            height: 12px;
+            object-fit: contain;
+        }
+
+        /* --- ACTION BAR (Controls) --- */
+        .action-bar {
+            padding: 0 16px;
+            margin-bottom: 8px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .left-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-muted);
+            font-size: 20px;
+        }
+
+        .action-img-icon {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+        }
+
+        .play-controls { display: flex; align-items: center; gap: 16px; }
+        .shuffle-icon { color: var(--text-muted); font-size: 24px; }
+
+        .play-btn {
+            background-color: var(--spotify-green);
+            border: none;
+            border-radius: 50%;
+            width: 48px; 
+            height: 48px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .play-btn::after {
+            content: "";
+            display: inline-block;
+            border-left: 15px solid black;
+            border-top: 10px solid transparent;
+            border-bottom: 10px solid transparent;
+            margin-left: 5px;
+        }
+
+        /* --- TRACK LIST --- */
+        .track-list {
+            flex-grow: 1;
+            padding: 0 16px;
+            overflow: hidden; 
+            box-sizing: border-box;
+        }
+
+        .track-row {
+            display: flex;
+            align-items: center;
+            padding: 7px 0; 
+            border-radius: 4px;
+        }
+
+        .track-thumb {
+            width: 42px; 
+            height: 42px;
+            margin-right: 12px;
+            object-fit: cover;
+        }
+
+        .track-info {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow: hidden; 
+        }
+
+        .track-title {
+            color: var(--text-main);
+            font-size: 14px; 
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .track-artist-meta {
+            color: var(--text-muted);
+            font-size: 11px; 
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .video-label {
+            border: 1px solid var(--text-muted);
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .track-check-icon { 
+            width: 16px; 
+            height: 16px; 
+            object-fit: contain; 
+            margin: 0 16px; 
+        }
+        
+        .ellipsis { color: var(--text-muted); font-size: 16px; }
+
+        /* --- CURRENTLY PLAYING BAR --- */
+        .playing-bar {
+            background-color: var(--playing-bar-bg);
+            padding: 10px 12px; 
+            display: flex;
+            align-items: center;
+            border-radius: 6px 6px 0 0;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
+            margin: 0 8px;
+            box-sizing: border-box;
+        }
+
+        .current-thumb {
+            width: 42px; 
+            height: 42px;
+            border-radius: 4px;
+            margin-right: 12px;
+            object-fit: cover;
+        }
+
+        .current-info { flex-grow: 1; overflow: hidden; }
+        
+        .current-title { 
+            font-size: 13px; 
+            font-weight: bold; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .current-artist-bt {
+            color: var(--spotify-green);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .playing-controls { display: flex; align-items: center; gap: 16px; font-size: 20px; color: var(--text-main); }
+
+        /* --- BOTTOM NAV BAR --- */
+        .bottom-nav {
+            background-color: var(--bg-black);
+            height: 70px; 
+            padding: 0 16px 15px; 
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 10px;
+            text-align: center;
+            border-top: 1px solid #1a1a1a;
+            box-sizing: border-box;
+        }
+
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0.7; }
+        .nav-item.active { color: var(--text-main); font-weight: bold; opacity: 1; }
+        
+        .nav-img-icon {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h2>Canvas Settings</h2>
+        
+        <div class="control-section">
+            <h4>Playlist Info</h4>
+            <div class="control-group">
+                <label>Playlist Title:</label>
+                <input type="text" id="title-input" placeholder="effortlessly chic">
+                
+                <label style="width: auto;">Username:</label>
+                <input type="text" id="username-input" placeholder="gabi">
+            </div>
+            <div class="control-group">
+                <label>Main Cover:</label>
+                <input type="file" id="main-cover-upload" accept="image/*">
+                
+                <label style="width: auto;">Creator PFP:</label>
+                <input type="file" id="creator-pfp-upload" accept="image/*">
+            </div>
+            <div class="control-group">
+                <label>Gradient Color:</label>
+                <input type="color" id="bg-color-input" value="#8a4a24">
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h4>Tracklist</h4>
+            
+            <div class="control-group">
+                <label style="color: white; font-weight: bold;">Track 1:</label>
+                <input type="text" id="t1-title-input" placeholder="Title">
+                <input type="text" id="t1-artist-input" placeholder="Artist">
+                <input type="file" id="t1-cover-upload" accept="image/*">
+            </div>
+
+            <div class="control-group">
+                <label style="color: white; font-weight: bold;">Track 2:</label>
+                <input type="text" id="t2-title-input" placeholder="Title">
+                <input type="text" id="t2-artist-input" placeholder="Artist">
+                <input type="file" id="t2-cover-upload" accept="image/*">
+            </div>
+
+            <div class="control-group">
+                <label style="color: white; font-weight: bold;">Track 3:</label>
+                <input type="text" id="t3-title-input" placeholder="Title">
+                <input type="text" id="t3-artist-input" placeholder="Artist">
+                <input type="file" id="t3-cover-upload" accept="image/*">
+            </div>
+
+            <div class="control-group">
+                <label style="color: white; font-weight: bold;">Track 4:</label>
+                <input type="text" id="t4-title-input" placeholder="Title">
+                <input type="text" id="t4-artist-input" placeholder="Artist">
+                <input type="file" id="t4-cover-upload" accept="image/*">
+            </div>
+        </div>
+
+        <div class="control-section">
+            <h4>Currently Playing Bar</h4>
+            <div class="control-group">
+                <label>Playing Song:</label>
+                <input type="text" id="current-song-input" placeholder="Is It a Crime">
+                
+                <label style="width: auto;">Artist:</label>
+                <input type="text" id="current-artist-input" placeholder="Sade">
+            </div>
+            <div class="control-group">
+                <label>Device Name:</label>
+                <input type="text" id="device-name-input" placeholder="soundcore P41i">
+            </div>
+            <div class="control-group">
+                <label>Playing Cover:</label>
+                <input type="file" id="playing-thumb-upload" accept="image/*">
+            </div>
+        </div>
+
+        <button id="download-btn" class="download-btn">Download Playlist Image</button>
+
+    </div>
+
+    <div id="playlist-canvas">
+        
+        <div class="status-bar">
+            <div>2:24</div>
+            <div class="status-right">
+                <svg width="17" height="11" viewBox="0 0 17 11" fill="white" xmlns="http://www.w3.org/2000/svg">
+                    <rect y="7" width="3" height="4" rx="1"/>
+                    <rect x="4" y="5" width="3" height="6" rx="1"/>
+                    <rect x="8" y="3" width="3" height="8" rx="1"/>
+                    <rect x="12" width="3" height="11" rx="1"/>
+                </svg>
+                <img class="status-icon" src="wifi-icon.png" alt="Wi-Fi">
+                <img class="status-icon" src="battery icon.png" alt="Battery">
+            </div>
+        </div>
+
+        <div class="top-nav">
+            <span style="font-weight: 100;">&lt;</span>
+        </div>
+
+        <div class="playlist-header">
+            <img class="cover-art" id="main-cover" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='232' height='232'><rect width='232' height='232' fill='%23282828'/><text x='50%27' y='50%27' fill='white' font-family='sans-serif' font-size='16' dominant-baseline='middle' text-anchor='middle'>Upload Cover</text></svg>" alt="Cover Art">
+            <h1 class="title" id="display-title">effortlessly chic</h1>
+            
+            <div class="creator-info">
+                <img class="creator-pfp" id="creator-pfp-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><rect width='24' height='24' fill='%231a1a1a'/></svg>" alt="Creator pfp">
+                <span id="display-username">gabi</span>
+            </div>
+
+            <div class="meta-data">
+                <img class="meta-icon" src="globe.png" alt="Globe"> 
+                <span>133 saves • 9h 34m</span>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <div class="left-controls">
+                <img class="action-img-icon" src="library.png" alt="Library">
+                <img class="action-img-icon" src="check.png" alt="Saved">
+                <img class="action-img-icon" src="download.png" alt="Download">
+                <span class="ellipsis">...</span>
+            </div>
+            <div class="play-controls">
+                <span class="shuffle-icon">⛶</span>
+                <button class="play-btn"></button>
+            </div>
+        </div>
+
+        <div class="track-list">
+            <div class="track-row">
+                <img class="track-thumb" id="t1-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect width='48' height='48' fill='%231a1a1a'/></svg>" alt="Thumb">
+                <div class="track-info">
+                    <span class="track-title" id="t1-title">I'm Not In Love</span>
+                    <div class="track-artist-meta">
+                        <span class="video-label">Video</span> • <span id="t1-artist">10cc</span>
+                    </div>
+                </div>
+                <img class="track-check-icon" src="check.png" alt="Saved">
+                <span class="ellipsis">...</span>
+            </div>
+
+            <div class="track-row">
+                <img class="track-thumb" id="t2-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect width='48' height='48' fill='%231a1a1a'/></svg>" alt="Thumb">
+                <div class="track-info">
+                    <span class="track-title" id="t2-title">Sadeness</span>
+                    <div class="track-artist-meta">
+                        <span class="video-label">Video</span> • <span id="t2-artist">Enigma</span>
+                    </div>
+                </div>
+                <span class="ellipsis">...</span>
+            </div>
+
+            <div class="track-row">
+                <img class="track-thumb" id="t3-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect width='48' height='48' fill='%231a1a1a'/></svg>" alt="Thumb">
+                <div class="track-info">
+                    <span class="track-title" id="t3-title">Breathe (In the Air)</span>
+                    <div class="track-artist-meta">
+                        <span id="t3-artist">Pink Floyd</span>
+                    </div>
+                </div>
+                <span class="ellipsis">...</span>
+            </div>
+
+            <div class="track-row">
+                <img class="track-thumb" id="t4-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect width='48' height='48' fill='%231a1a1a'/></svg>" alt="Thumb">
+                <div class="track-info">
+                    <span class="track-title" id="t4-title">Glory Box</span>
+                    <div class="track-artist-meta">
+                        <span class="video-label">Video</span> • <span id="t4-artist">Portishead</span>
+                    </div>
+                </div>
+                <span class="ellipsis">...</span>
+            </div>
+        </div>
+
+        <div class="playing-bar">
+            <img class="current-thumb" id="playing-thumb" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><rect width='48' height='48' fill='%2306424D'/></svg>" alt="Thumb">
+            <div class="current-info">
+                <div class="current-title" id="display-current-song">Is It a Crime</div>
+                <div class="current-artist-bt">
+                    <span id="display-current-artist">Sade</span>
+                    <img src="headphones.png" alt="Headphones" style="width: 12px; height: 12px; object-fit: contain; margin-left: 2px;">
+                    <span id="display-device-name" style="font-size: 11px;">soundcore P41i</span>
+                </div>
+            </div>
+            <div class="playing-controls">
+                <img src="headphones.png" alt="Headphones" style="width: 20px; height: 20px; object-fit: contain;">
+                <span>||</span>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item">
+                <img class="nav-img-icon" src="home.png" alt="Home">
+                Home
+            </div>
+            <div class="nav-item">
+                <img class="nav-img-icon" src="search.png" alt="Search">
+                Search
+            </div>
+            <div class="nav-item active">
+                <img class="nav-img-icon" src="library.png" alt="Library">
+                Your Library
+            </div>
+            <div class="nav-item">
+                <img class="nav-img-icon" src="create.png" alt="Create">
+                Create
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function setupTextEditor(inputId, displayId, defaultText) {
+            const inputElement = document.getElementById(inputId);
+            const displayElement = document.getElementById(displayId);
+            
+            inputElement.addEventListener('input', function(event) {
+                displayElement.innerText = event.target.value || defaultText;
+            });
+        }
+
+        function setupImageEditor(uploadId, imgId) {
+            const fileInput = document.getElementById(uploadId);
+            const targetImgElement = document.getElementById(imgId);
+
+            fileInput.addEventListener('change', function(event) {
+                const file = event.target.files[0]; 
+                if (file) {
+                    const reader = new FileReader(); 
+                    reader.onload = function(e) {
+                        targetImgElement.src = e.target.result;
+                    }
+                    reader.readAsDataURL(file); 
+                }
+            });
+        }
+
+        // 1. Playlist Info Setup
+        setupTextEditor('title-input', 'display-title', 'effortlessly chic');
+        setupTextEditor('username-input', 'display-username', 'gabi');
+        setupImageEditor('main-cover-upload', 'main-cover');
+        setupImageEditor('creator-pfp-upload', 'creator-pfp-img');
+
+        // 2. Color Variable setup
+        const colorInput = document.getElementById('bg-color-input');
+        colorInput.addEventListener('input', function(event) {
+            document.documentElement.style.setProperty('--gradient-top', event.target.value);
+        });
+
+        // 3. Track List Setup
+        setupTextEditor('t1-title-input', 't1-title', "I'm Not In Love");
+        setupTextEditor('t1-artist-input', 't1-artist', '10cc');
+        setupImageEditor('t1-cover-upload', 't1-thumb');
+
+        setupTextEditor('t2-title-input', 't2-title', 'Sadeness');
+        setupTextEditor('t2-artist-input', 't2-artist', 'Enigma');
+        setupImageEditor('t2-cover-upload', 't2-thumb');
+
+        setupTextEditor('t3-title-input', 't3-title', 'Breathe (In the Air)');
+        setupTextEditor('t3-artist-input', 't3-artist', 'Pink Floyd');
+        setupImageEditor('t3-cover-upload', 't3-thumb');
+
+        setupTextEditor('t4-title-input', 't4-title', 'Glory Box');
+        setupTextEditor('t4-artist-input', 't4-artist', 'Portishead');
+        setupImageEditor('t4-cover-upload', 't4-thumb');
+
+        // 4. Currently Playing Setup
+        setupTextEditor('current-song-input', 'display-current-song', 'Is It a Crime');
+        setupTextEditor('current-artist-input', 'display-current-artist', 'Sade');
+        setupTextEditor('device-name-input', 'display-device-name', 'soundcore P41i');
+        setupImageEditor('playing-thumb-upload', 'playing-thumb');
+
+        // 5. Beautiful Image Download Trigger 
+        document.getElementById('download-btn').addEventListener('click', function() {
+            const canvasElement = document.getElementById('playlist-canvas');
+            const btn = this;
+            
+            const originalText = btn.innerText;
+            btn.innerText = "Generating Snapshot...";
+
+            html2canvas(canvasElement, {
+                scale: 2, // Doubled for clean crisp lines
+                useCORS: true, 
+                logging: false,
+                backgroundColor: null 
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'custom-playlist.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                btn.innerText = originalText;
+            }).catch(err => {
+                console.error("Error generating canvas image:", err);
+                alert("Canvas capture error. Try running the project via a development server environment (like Live Server or an online sandbox) to bypass local file safety rules.");
+                btn.innerText = originalText;
+            });
+        });
+    </script>
+</body>
+</html>
